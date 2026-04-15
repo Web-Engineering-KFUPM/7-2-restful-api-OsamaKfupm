@@ -1,8 +1,8 @@
 import express from "express";
 import cors from "cors";
+import dotenv from "dotenv";
 
-// import dotenv and load environment variables from .env
-
+dotenv.config();
 
 import { connectDB } from "./db.js";
 import { Song } from "./models/song.model.js";
@@ -10,19 +10,64 @@ import { Song } from "./models/song.model.js";
 const app = express();
 const PORT = process.env.PORT || 5174;
 
-app.use(cors());              
+app.use(cors());
 app.use(express.json());
 
 await connectDB(process.env.MONGO_URL);
 
 // api/songs (Read all songs)
-
+app.get("/api/songs", async (req, res) => {
+  try {
+    const songs = await Song.find().sort({ createdAt: -1 });
+    res.status(200).json(songs);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch songs", error: error.message });
+  }
+});
 
 // api/songs (Insert song)
+app.post("/api/songs", async (req, res) => {
+  try {
+    const newSong = await Song.create(req.body);
+    res.status(201).json(newSong);
+  } catch (error) {
+    res.status(400).json({ message: "Failed to create song", error: error.message });
+  }
+});
 
 // /api/songs/:id (Update song)
+app.put("/api/songs/:id", async (req, res) => {
+  try {
+    const updatedSong = await Song.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true,
+    });
 
+    if (!updatedSong) {
+      return res.status(404).json({ message: "Song not found" });
+    }
+
+    res.status(200).json(updatedSong);
+  } catch (error) {
+    res.status(400).json({ message: "Failed to update song", error: error.message });
+  }
+});
 
 // /api/songs/:id (Delete song)
+app.delete("/api/songs/:id", async (req, res) => {
+  try {
+    const deletedSong = await Song.findByIdAndDelete(req.params.id);
 
-app.listen(PORT, () => console.log(`API running on http://localhost:${PORT}`));
+    if (!deletedSong) {
+      return res.status(404).json({ message: "Song not found" });
+    }
+
+    res.status(200).json({ message: "Song deleted successfully" });
+  } catch (error) {
+    res.status(400).json({ message: "Failed to delete song", error: error.message });
+  }
+});
+
+app.listen(PORT, () => {
+  console.log(`API running on http://localhost:${PORT}`);
+});
